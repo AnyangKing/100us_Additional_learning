@@ -1,0 +1,6 @@
+  - d_model: 
+  - n_layers: 
+  - n_heads: 
+  - lr: 
+  - batch_size: 
+  - dropout: 
