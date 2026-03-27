@@ -79,7 +79,7 @@ def objective(trial, train_dataset, val_dataset):
     # 하이퍼파라미터 탐색 공간
     d_model = trial.suggest_categorical("d_model", [128, 256, 512])
     n_layers = trial.suggest_int("n_layers", 8, 15)
-    n_heads = trial.suggest_categorical("n_heads", [4, 8])
+    n_heads = trial.suggest_categorical("n_heads", [4, 8, 16])
     lr = trial.suggest_float("lr", 1e-5, 5e-4, log=True)
     batch_size = trial.suggest_categorical("batch_size", [128, 256, 512])
     dropout = trial.suggest_float("dropout", 0.05, 0.2)
