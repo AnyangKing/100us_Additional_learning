@@ -19,12 +19,12 @@ DEVICE = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 # ==============================================================================
 # 1. 설정 (800m 데이터셋 및 기존 스케일러 경로)
 # ==============================================================================
-DATASET_PATH = 'dataset_td_0.0-5.0_doa_0.0-0.5_800m.npz'
-MODEL_SAVE_PATH = 'model_lstm_800m.pt'
+DATASET_PATH = 'dataset_td_0.0-15.0_doa_0.0-0.5.npz'
+MODEL_SAVE_PATH = 'model_lstm_td_0.0-15.0_doa_0.0-0.5.pt'
 
 # 기존 800m용 스케일러 경로
-SCALER_X_PATH = 'scaler_x_td_0.0-5.0_doa_0.0-0.5_800m.pkl'
-SCALER_Y_PATH = 'scaler_y_td_0.0-5.0_doa_0.0-0.5_800m.pkl'
+SCALER_X_PATH = 'scaler_x_td_0.0-15.0_doa_0.0-0.5_.pkl'
+SCALER_Y_PATH = 'scaler_y_td_0.0-15.0_doa_0.0-0.5_.pkl'
 
 # 하이퍼파라미터
 HIDDEN_DIM = 256
