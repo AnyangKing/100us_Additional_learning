@@ -155,9 +155,12 @@ if __name__ == '__main__':
         l_m = LSTMModel(25, 3, 512, 3, 0.3).to(DEVICE); l_m.load_state_dict(torch.load(CONFIG['lstm_path'], map_location=DEVICE))
         m_m = MLPModel(25, 3, 20, 1024, 0.3).to(DEVICE); m_m.load_state_dict(torch.load(CONFIG['mlp_path'], map_location=DEVICE))
         c_m = CNN1DModel(25, 3, 0.3).to(DEVICE); c_m.load_state_dict(torch.load(CONFIG['cnn_path'], map_location=DEVICE))
-    except: print("모델 파일 확인 필요"); sys.exit()
+    except Exception as e:
+        print(f"모델 파일 확인 필요: {e}")
+        sys.exit(1)
 
-    ITER, sensors_loc_cm = 10000, get_sensors_cm()
+    QUICK_MODE = '--quick' in sys.argv
+    ITER, sensors_loc_cm = (300 if QUICK_MODE else 10000), get_sensors_cm()
     def run_full_comparison(steps, type='dist'):
         res = {k: [] for k in model_styles.keys()}
         C_DIST, C_STD, C_DOA = 40000, 7.5, 0.5 
@@ -167,9 +170,12 @@ if __name__ == '__main__':
             t_td_m, t_doa = (val if type == 'tdoa' else 0.0), (val if type == 'doa' else C_DOA)
             for _ in range(ITER):
                 gt_cm, feat_cm = generate_controlled_traj_cm(t_td_std, t_doa, t_dist, t_td_m)
-                for k, m in zip(['Proposed', 'LSTM', 'MLP', 'CNN'], [p_m, l_m, m_m, c_m]): 
-                    errs_cm[k].append(calculate_rmse(gt_cm, sliding_window_inference_cm(m, sx, sy, feat_cm)))
-                p_o = sliding_window_inference_cm(m_m, sx, sy, feat_cm); kf_t, kf = [], KalmanFilter(gt_cm[0])
+                pred_cache = {}
+                for k, m in zip(['Proposed', 'LSTM', 'MLP', 'CNN'], [p_m, l_m, m_m, c_m]):
+                    pred_cache[k] = sliding_window_inference_cm(m, sx, sy, feat_cm)
+                    errs_cm[k].append(calculate_rmse(gt_cm, pred_cache[k]))
+                # KF는 제안 모델(Proposed) 출력을 기반으로 보정
+                p_o = pred_cache['Proposed']; kf_t, kf = [], KalmanFilter(gt_cm[0])
                 for t in range(200): kf_t.append(kf.predict_and_update(p_o[t]))
                 errs_cm['KF'].append(calculate_rmse(gt_cm, np.array(kf_t)))
                 p_mus = []
@@ -184,6 +190,7 @@ if __name__ == '__main__':
     r_dist = run_full_comparison(dist_steps, 'dist')
     r_tdoa = run_full_comparison(tdoa_m_steps_cm, 'tdoa')
     r_doa = run_full_comparison(doa_steps, 'doa')
+    td_us_steps = (tdoa_m_steps_cm / SOUND_SPEED_CM_S) * 1000000
 
     # ==============================================================================
     # 4. 터미널 결과 출력 (지적 사항 완벽 반영: TDOA MUSIC 포함 및 1us 간격)
@@ -202,7 +209,7 @@ if __name__ == '__main__':
     print(f"{'Bias(us)':<10} | {'Prop':<16} | {'MUSIC':<16} | {'LSTM':<16} | {'MLP':<16} | {'KF':<16} | {'1D-CNN'}")
     print(f"{'-'*175}")
     for i in range(len(tdoa_m_steps_cm)):
-        s_str = f"{round(i*1.0):>8}" # 정확히 0, 1, 2... 100us 출력
+        s_str = f"{td_us_steps[i]:>8.1f}"
         print(f"{s_str} | {r_tdoa['Proposed'][i]:<16.4f} | {r_tdoa['MUSIC'][i]:<16.4f} | {r_tdoa['LSTM'][i]:<16.4f} | {r_tdoa['MLP'][i]:<16.4f} | {r_tdoa['KF'][i]:<16.4f} | {r_tdoa['CNN'][i]:.4f}")
 
     # (3) DOA 요약 (MUSIC 제거)
@@ -240,7 +247,7 @@ if __name__ == '__main__':
     plt.yscale('log'); plt.ylim(0.1, 100); plt.gca().yaxis.set_major_formatter(ScalarFormatter()); plt.title("Distance Error Analysis"); plt.xlabel("Distance (m)"); plt.ylabel("RMSE (m)"); plt.legend(); plt.tight_layout()
 
     # Figure 5: TDOA 바이어스 분석 (1us 정밀, 10us 마커)
-    plt.figure(5, figsize=(10, 7)); td_us = (tdoa_m_steps_cm / SOUND_SPEED_CM_S) * 1000000
+    plt.figure(5, figsize=(10, 7)); td_us = td_us_steps
     plt.gca().set_xticks(np.arange(0, 101, 10))
     plt.gca().xaxis.grid(True, ls=':', alpha=0.5); plt.gca().yaxis.grid(True, which='both', ls=':', alpha=0.5)
     for k in model_styles.keys():
